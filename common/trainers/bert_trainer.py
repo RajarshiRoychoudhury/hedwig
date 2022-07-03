@@ -1,5 +1,6 @@
 import datetime
 import os
+import sys
 
 import torch
 import torch.nn.functional as F
@@ -8,6 +9,7 @@ from tqdm import tqdm
 from tqdm import trange
 
 from common.evaluators.bert_evaluator import BertEvaluator
+from common.evaluators.bert_regression_evaluator import BertRegressionEvaluator
 from datasets.bert_processors.abstract_processor import convert_examples_to_features
 from datasets.bert_processors.abstract_processor import convert_examples_to_hierarchical_features
 from utils.optimization import warmup_linear
@@ -32,9 +34,11 @@ class BertTrainer(object):
 
         self.log_header = 'Epoch Iteration Progress   Dev/Acc.  Dev/Pr.  Dev/Re.   Dev/F1   Dev/Loss'
         self.log_template = ' '.join('{:>5.0f},{:>9.0f},{:>6.0f}/{:<5.0f} {:>6.4f},{:>8.4f},{:8.4f},{:8.4f},{:10.4f}'.split(','))
-
+        self.log_regression_header = 'Epoch Iteration Progress   Dev/MSE.  Dev/MLE. Dev/Loss'
+        self.log_regression_template = ' '.join('{:>5.0f},{:>9.0f},{:>6.0f}/{:<5.0f} {:>6.4f},{:10.4f}'.split(','))
         self.iterations, self.nb_tr_steps, self.tr_loss = 0, 0, 0
         self.best_dev_f1, self.unimproved_iters = 0, 0
+        self.best_mse = sys.maxsize
         self.early_stop = False
 
     def train_epoch(self, train_dataloader):
@@ -42,10 +46,12 @@ class BertTrainer(object):
             self.model.train()
             batch = tuple(t.to(self.args.device) for t in batch)
             input_ids, input_mask, segment_ids, label_ids = batch
-            logits = self.model(input_ids, input_mask, segment_ids)[0]
+            logits = self.model(input_ids, input_mask, segment_ids)
 
             if self.args.is_multilabel:
                 loss = F.binary_cross_entropy_with_logits(logits, label_ids.float())
+            elif self.args.regression:
+                loss = F.smooth_l1_loss(logits, label_ids.float())
             else:
                 loss = F.cross_entropy(logits, torch.argmax(label_ids, dim=1))
 
@@ -72,6 +78,7 @@ class BertTrainer(object):
                 self.iterations += 1
 
     def train(self):
+        print(self.args)
         if self.args.is_hierarchical:
             train_features = convert_examples_to_hierarchical_features(
                 self.train_examples, self.args.max_seq_length, self.tokenizer)
@@ -104,23 +111,45 @@ class BertTrainer(object):
 
         for epoch in trange(int(self.args.epochs), desc="Epoch"):
             self.train_epoch(train_dataloader)
-            dev_evaluator = BertEvaluator(self.model, self.processor, self.tokenizer, self.args, split='dev')
-            dev_acc, dev_precision, dev_recall, dev_f1, dev_loss = dev_evaluator.get_scores()[0]
+            if not self.args.regression:
+                dev_evaluator = BertEvaluator(self.model, self.processor, self.tokenizer, self.args, split='dev')
+                dev_acc, dev_precision, dev_recall, dev_f1, dev_loss = dev_evaluator.get_scores()[0]
 
-            # Print validation results
-            tqdm.write(self.log_header)
-            tqdm.write(self.log_template.format(epoch + 1, self.iterations, epoch + 1, self.args.epochs,
-                                                dev_acc, dev_precision, dev_recall, dev_f1, dev_loss))
+                # Print validation results
+                tqdm.write(self.log_header)
+                tqdm.write(self.log_template.format(epoch + 1, self.iterations, epoch + 1, self.args.epochs,
+                                                    dev_acc, dev_precision, dev_recall, dev_f1, dev_loss))
 
-            # Update validation results
-            if dev_f1 > self.best_dev_f1:
-                self.unimproved_iters = 0
-                self.best_dev_f1 = dev_f1
-                torch.save(self.model, self.snapshot_path)
+                # Update validation results
+                if dev_f1 > self.best_dev_f1:
+                    self.unimproved_iters = 0
+                    self.best_dev_f1 = dev_f1
+                    torch.save(self.model, self.snapshot_path)
 
+                else:
+                    self.unimproved_iters += 1
+                    if self.unimproved_iters >= self.args.patience:
+                        self.early_stop = True
+                        tqdm.write("Early Stopping. Epoch: {}, Best Dev F1: {}".format(epoch, self.best_dev_f1))
+                        break
             else:
-                self.unimproved_iters += 1
-                if self.unimproved_iters >= self.args.patience:
-                    self.early_stop = True
-                    tqdm.write("Early Stopping. Epoch: {}, Best Dev F1: {}".format(epoch, self.best_dev_f1))
-                    break
+                dev_evaluator = BertRegressionEvaluator(self.model, self.processor, self.tokenizer, self.args, split='dev')
+                mse, mle, dev_loss = dev_evaluator.get_scores()[0]
+
+                # Print validation results
+                tqdm.write(self.log_regression_header)
+                tqdm.write(self.log_regression_template.format(epoch + 1, self.iterations, epoch + 1, self.args.epochs,
+                                                    mse, mle, dev_loss))
+
+                # Update validation results
+                if mse < self.best_mse:
+                    self.unimproved_iters = 0
+                    self.best_mse = mse
+                    torch.save(self.model, self.snapshot_path)
+
+                else:
+                    self.unimproved_iters += 1
+                    if self.unimproved_iters >= self.args.patience:
+                        self.early_stop = True
+                        tqdm.write("Early Stopping. Epoch: {}, Best MSE: {}".format(epoch, self.best_mse))
+                        break

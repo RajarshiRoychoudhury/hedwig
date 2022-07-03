@@ -1,4 +1,5 @@
 from common.evaluators.classification_evaluator import ClassificationEvaluator
+from common.evaluators.regression_evaluator import RegressionEvaluator
 from common.evaluators.relevance_transfer_evaluator import RelevanceTransferEvaluator
 
 
@@ -24,7 +25,9 @@ class EvaluatorFactory(object):
         'TREC6': ClassificationEvaluator,
         'Robust04': RelevanceTransferEvaluator,
         'Robust05': RelevanceTransferEvaluator,
-        'Robust45': RelevanceTransferEvaluator
+        'Robust45': RelevanceTransferEvaluator,
+        'SHIT_PLOS_CLASSIFICATION': ClassificationEvaluator,
+        'SHIT_PLOS_REGRESSION': RegressionEvaluator
     }
 
     @staticmethod

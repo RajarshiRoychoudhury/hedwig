@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from sklearn import metrics
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from tqdm import tqdm
+from transformers import TFTrainingArguments
 
 from datasets.bert_processors.abstract_processor import convert_examples_to_features, \
     convert_examples_to_hierarchical_features
@@ -66,7 +67,7 @@ class BertEvaluator(object):
             label_ids = label_ids.to(self.args.device)
 
             with torch.no_grad():
-                logits = self.model(input_ids, input_mask, segment_ids)[0]
+                logits = self.model(input_ids, input_mask, segment_ids)
 
             if self.args.is_multilabel:
                 predicted_labels.extend(F.sigmoid(logits).round().long().cpu().detach().numpy())
@@ -74,7 +75,7 @@ class BertEvaluator(object):
                 loss = F.binary_cross_entropy_with_logits(logits, label_ids.float(), size_average=False)
             else:
                 predicted_labels.extend(torch.argmax(logits, dim=1).cpu().detach().numpy())
-                target_labels.extend(torch.argmax(label_ids, dim=1).cpu().detach().numpy())
+                target_labels.extend(label_ids.cpu().detach().numpy())
                 loss = F.cross_entropy(logits, torch.argmax(label_ids, dim=1))
 
             if self.args.n_gpu > 1:

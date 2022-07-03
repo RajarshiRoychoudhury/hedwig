@@ -1,4 +1,5 @@
 from common.trainers.classification_trainer import ClassificationTrainer
+from common.trainers.regression_trainer import RegressionTrainer
 from common.trainers.relevance_transfer_trainer import RelevanceTransferTrainer
 
 
@@ -25,6 +26,9 @@ class TrainerFactory(object):
         'Robust04': RelevanceTransferTrainer,
         'Robust05': RelevanceTransferTrainer,
         'Robust45': RelevanceTransferTrainer,
+        'SHIT_PLOS_CLASSIFICATION': ClassificationTrainer,
+        'SHIT_PLOS_REGRESSION': RegressionTrainer
+
     }
 
     @staticmethod
