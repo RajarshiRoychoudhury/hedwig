@@ -83,6 +83,8 @@ if __name__ == '__main__':
 
     pretrained_model_path = args.model if os.path.isfile(args.model) else PRETRAINED_MODEL_ARCHIVE_MAP[args.model]
     model = BertForSequenceClassification.from_pretrained(pretrained_model_path, num_labels=args.num_labels)
+    for param in model.parameters():
+            param.requires_grad = False
 
     if args.fp16:
         model.half()
@@ -125,6 +127,9 @@ if __name__ == '__main__':
 
     else:
         model = BertForSequenceClassification.from_pretrained(pretrained_model_path, num_labels=args.num_labels)
+        
+        for param in model.parameters():
+            param.requires_grad = False
         model_ = torch.load(args.trained_model, map_location=lambda storage, loc: storage)
         state = {}
         for key in model_.state_dict().keys():
