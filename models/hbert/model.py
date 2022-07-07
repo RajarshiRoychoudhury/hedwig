@@ -30,7 +30,13 @@ class HierarchicalBert(nn.Module):
                                padding=(4, 0))
 
         self.dropout = nn.Dropout(args.dropout)
-        self.fc1 = nn.Linear(ks * args.output_channel, args.num_labels)
+        #self.fc1 = nn.Linear(ks * args.output_channel, args.num_labels)
+        self.regression = args.regression
+        if(args.regression) :
+            self.fc1 = nn.Linear(ks * args.output_channel, 1)
+            self.tanh = nn.Tanh()
+        else:
+            self.fc1 = nn.Linear(ks * args.output_channel, args.num_labels)
 
     def forward(self, input_ids, segment_ids=None, input_mask=None):
         """
@@ -64,5 +70,7 @@ class HierarchicalBert(nn.Module):
 
         x = self.dropout(x)
         logits = self.fc1(x)  # (batch_size, num_labels)
+        if self.regression:
+            return self.tanh(self.fc1(x))
 
         return logits, x

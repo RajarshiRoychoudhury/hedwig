@@ -25,8 +25,13 @@ class FastText(nn.Module):
             print("Unsupported Mode")
             exit()
 
+        self.regression = config.regression
         self.dropout = nn.Dropout(config.dropout)
-        self.fc1 = nn.Linear(words_dim, target_class)
+        if(config.regression) :
+            self.fc1 = nn.Linear(words_dim, 1)
+            self.tanh = nn.Tanh()
+        else:
+            self.fc1 = nn.Linear(words_dim, target_class)
 
     def forward(self, x, **kwargs):
         if self.mode == 'rand':
@@ -39,6 +44,8 @@ class FastText(nn.Module):
         x = F.avg_pool2d(x, (x.shape[1], 1)).squeeze(1)  # (batch, embed_dim)
 
         logit = self.fc1(x)  # (batch, target_size)
+        if self.regression:
+            return self.tanh(logit)
         return logit
 
 

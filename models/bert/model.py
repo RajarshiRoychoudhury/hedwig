@@ -38,16 +38,17 @@ class Model(nn.Module):
         self.tanh=  nn.Tanh()
 
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        head_mask=None,
-        inputs_embeds=None,
-        labels=None,output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
+        # self,
+        # input_ids=None,
+        # attention_mask=None,
+        # token_type_ids=None,
+        # position_ids=None,
+        # head_mask=None,
+        # inputs_embeds=None,
+        # labels=None,output_attentions=None,
+        # output_hidden_states=None,
+        # return_dict=None,
+        self, input_ids, segment_ids=None, input_mask=None
     ):
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -55,18 +56,18 @@ class Model(nn.Module):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        # return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         #print("return_dict", return_dict)
         outputs = self.bert(
             input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+            attention_mask=input_mask,
+            token_type_ids=segment_ids,
+            # position_ids=position_ids,
+            # head_mask=head_mask,
+            # inputs_embeds=inputs_embeds,
+            # output_attentions=True,
+            # output_hidden_states=True,
+            # return_dict=True,
         )
         #print(outputs)
         pooled_output = outputs[1]
@@ -86,8 +87,8 @@ class Model(nn.Module):
         
         logits = self.classifier(temp_outputs)
         if(self.config.num_labels==1) :
-            return self.tanh(logits)
-        return self.log_softmax(logits)
+            return self.tanh(logits), logits
+        return self.log_softmax(logits), logits
 
     def predict_class(self, pred: torch.Tensor) -> List:
         class_outputs = []
@@ -115,7 +116,7 @@ class Model(nn.Module):
 
 def getModelAndTokenizer(path, num_labels, regression):
     tokenizer = BertTokenizer.from_pretrained(path)
-    config  = BertConfig.from_pretrained(path, output_hidden_states=True, output_attentions=True)
+    config  = BertConfig.from_pretrained(path)
     if regression:
         config.num_labels=1
     else:

@@ -3,10 +3,11 @@ import time
 
 import numpy as np
 import torch
-from transformers import AdamW, BertTokenizer, WarmupLinearSchedule
+from transformers import AdamW, BertTokenizer, get_linear_schedule_with_warmup
 
 from common.constants import *
 from common.evaluators.bert_evaluator import BertEvaluator
+from common.evaluators.bert_regression_evaluator import BertRegressionEvaluator
 from common.trainers.bert_trainer import BertTrainer
 from datasets.bert_processors.aapd_processor import AAPDProcessor
 from datasets.bert_processors.agnews_processor import AGNewsProcessor
@@ -15,16 +16,23 @@ from datasets.bert_processors.reuters_processor import ReutersProcessor
 from datasets.bert_processors.sogou_processor import SogouProcessor
 from datasets.bert_processors.sst_processor import SST2Processor
 from datasets.bert_processors.yelp2014_processor import Yelp2014Processor
+from datasets.bert_processors.shit_plos_classtification_processor import SHIT_PLOS_CLASSIFICATION_Processor
+from datasets.bert_processors.shit_plos_regression_processor import SHIT_PLOS_REGRESSION_Processor
 from models.hbert.args import get_args
 from models.hbert.model import HierarchicalBert
 
 
 def evaluate_split(model, processor, tokenizer, args, split='dev'):
-    evaluator = BertEvaluator(model, processor, tokenizer, args, split)
-    accuracy, precision, recall, f1, avg_loss = evaluator.get_scores(silent=True)[0]
-    print('\n' + LOG_HEADER)
-    print(LOG_TEMPLATE.format(split.upper(), accuracy, precision, recall, f1, avg_loss))
-
+    if not args.regression:
+        evaluator = BertEvaluator(model, processor, tokenizer, args, split)
+        accuracy, precision, recall, f1, avg_loss = evaluator.get_scores(silent=True)[0]
+        print('\n' + LOG_HEADER)
+        print(LOG_TEMPLATE.format(split.upper(), accuracy, precision, recall, f1, avg_loss))
+    else:
+        evaluator = BertRegressionEvaluator(model, processor, tokenizer, args, split)
+        mse, mle, avg_loss = evaluator.get_scores(silent=True)[0]
+        print('\n' + LOG_REGRESSION_HEADER)
+        print(LOG_REGRESSION_TEMPLATE.format(split.upper(), mse, mle, avg_loss))
 
 if __name__ == '__main__':
     # Set default configuration in args.py
@@ -50,7 +58,9 @@ if __name__ == '__main__':
         'AAPD': AAPDProcessor,
         'AGNews': AGNewsProcessor,
         'Yelp2014': Yelp2014Processor,
-        'Sogou': SogouProcessor
+        'Sogou': SogouProcessor,
+        'SHIT_PLOS_CLASSIFICATION': SHIT_PLOS_CLASSIFICATION_Processor,
+        'SHIT_PLOS_REGRESSION':  SHIT_PLOS_REGRESSION_Processor
     }
 
     if args.gradient_accumulation_steps < 1:
@@ -123,8 +133,8 @@ if __name__ == '__main__':
 
     else:
         optimizer = AdamW(optimizer_grouped_parameters, lr=args.lr, weight_decay=0.01, correct_bias=False)
-        scheduler = WarmupLinearSchedule(optimizer, t_total=num_train_optimization_steps,
-                                         warmup_steps=args.warmup_proportion * num_train_optimization_steps)
+        scheduler = get_linear_schedule_with_warmup(optimizer, num_training_steps=num_train_optimization_steps,
+                                             num_warmup_steps=args.warmup_proportion * num_train_optimization_steps)
 
     trainer = BertTrainer(model, optimizer, processor, scheduler, tokenizer, args)
 

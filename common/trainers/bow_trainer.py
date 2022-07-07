@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm, trange
 
 from common.evaluators.bow_evaluator import BagOfWordsEvaluator
+from common.evaluators.bow_regression_evaluator import BagOfWordsRegressionEvaluator
 from datasets.bow_processors.abstract_processor import StreamingSparseDataset
 
 
@@ -27,9 +28,11 @@ class BagOfWordsTrainer(object):
 
         self.log_header = 'Epoch Iteration Progress   Dev/Acc.  Dev/Pr.  Dev/Re.   Dev/F1   Dev/Loss'
         self.log_template = ' '.join('{:>5.0f},{:>9.0f},{:>6.0f}/{:<5.0f} {:>6.4f},{:>8.4f},{:8.4f},{:8.4f},{:10.4f}'.split(','))
-
+        self.log_regression_header = 'Epoch Iteration Progress   Dev/MSE.  Dev/MLE. Dev/Loss'
+        self.log_regression_template = ' '.join('{:>5.0f},{:>9.0f},{:>6.0f}/{:<5.0f} {:>6.4f},{:10.4f}'.split(','))
         self.train_loss = 0
         self.best_dev_f1 = 0
+        self.best_mse = 0
         self.nb_train_steps = 0
         self.unimproved_iters = 0
         self.early_stop = False
@@ -67,22 +70,44 @@ class BagOfWordsTrainer(object):
 
         for epoch in trange(int(self.args.epochs), desc="Epoch"):
             self.train_epoch(train_dataloader)
-            dev_evaluator = BagOfWordsEvaluator(self.model, self.vectorizer, self.processor, self.args, split='dev')
-            dev_acc, dev_precision, dev_recall, dev_f1, dev_loss = dev_evaluator.get_scores()[0]
+            if not self.args.regression: 
+                dev_evaluator = BagOfWordsEvaluator(self.model, self.vectorizer, self.processor, self.args, split='dev')
+                dev_acc, dev_precision, dev_recall, dev_f1, dev_loss = dev_evaluator.get_scores()[0]
 
-            # Print validation results
-            tqdm.write(self.log_header)
-            tqdm.write(self.log_template.format(epoch + 1, self.nb_train_steps, epoch + 1, self.args.epochs,
-                                                dev_acc, dev_precision, dev_recall, dev_f1, dev_loss))
+                # Print validation results
+                tqdm.write(self.log_header)
+                tqdm.write(self.log_template.format(epoch + 1, self.nb_train_steps, epoch + 1, self.args.epochs,
+                                                    dev_acc, dev_precision, dev_recall, dev_f1, dev_loss))
 
-            # Update validation results
-            if dev_f1 > self.best_dev_f1:
-                self.unimproved_iters = 0
-                self.best_dev_f1 = dev_f1
-                torch.save(self.model, self.snapshot_path)
+                # Update validation results
+                if dev_f1 > self.best_dev_f1:
+                    self.unimproved_iters = 0
+                    self.best_dev_f1 = dev_f1
+                    torch.save(self.model, self.snapshot_path)
+                else:
+                    self.unimproved_iters += 1
+                    if self.unimproved_iters >= self.args.patience:
+                        self.early_stop = True
+                        tqdm.write("Early Stopping. Epoch: {}, Best Dev F1: {}".format(epoch, self.best_dev_f1))
+                        break
             else:
-                self.unimproved_iters += 1
-                if self.unimproved_iters >= self.args.patience:
-                    self.early_stop = True
-                    tqdm.write("Early Stopping. Epoch: {}, Best Dev F1: {}".format(epoch, self.best_dev_f1))
-                    break
+                dev_evaluator = BagOfWordsRegressionEvaluator(self.model, self.vectorizer, self.processor, self.args, split='dev')
+                mse, mle, dev_loss = dev_evaluator.get_scores()[0]
+
+                # Print validation results
+                tqdm.write(self.log_regression_header)
+                tqdm.write(self.log_regression_template.format(epoch + 1, self.iterations, epoch + 1, self.args.epochs,
+                                                    mse, mle, dev_loss))
+
+                # Update validation results
+                if mse < self.best_mse:
+                    self.unimproved_iters = 0
+                    self.best_mse = mse
+                    torch.save(self.model, self.snapshot_path)
+
+                else:
+                    self.unimproved_iters += 1
+                    if self.unimproved_iters >= self.args.patience:
+                        self.early_stop = True
+                        tqdm.write("Early Stopping. Epoch: {}, Best MSE: {}".format(epoch, self.best_mse))
+                        break

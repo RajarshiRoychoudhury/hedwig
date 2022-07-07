@@ -13,7 +13,7 @@ from datasets.bow_processors.abstract_processor import StreamingSparseDataset
 warnings.filterwarnings('ignore')
 
 
-class BagOfWordsEvaluator(object):
+class BagOfWordsRegressionEvaluator(object):
     def __init__(self, model, vectorizer, processor, args, split='dev'):
         self.args = args
         self.model = model
@@ -48,14 +48,9 @@ class BagOfWordsEvaluator(object):
             if self.args.n_gpu > 1:
                 logits = logits.view(labels.size())
 
-            if self.args.is_multilabel:
-                predicted_labels.extend(F.sigmoid(logits).round().long().cpu().detach().numpy())
-                target_labels.extend(labels.cpu().detach().numpy())
-                loss = F.binary_cross_entropy_with_logits(logits, labels.float(), size_average=False)
-            else:
-                predicted_labels.extend(torch.argmax(logits, dim=1).cpu().detach().numpy())
-                target_labels.extend(torch.argmax(labels, dim=1).cpu().detach().numpy())
-                loss = F.cross_entropy(logits, torch.amax(labels, dim=1))
+            predicted_labels.extend(logits.cpu().detach().numpy())
+            target_labels.extend(labels.cpu().detach().numpy())
+            loss = F.smooth_l1_loss(logits, labels)
 
             if self.args.n_gpu > 1:
                 loss = loss.mean()
@@ -63,11 +58,7 @@ class BagOfWordsEvaluator(object):
             total_loss += loss.item()
             nb_eval_steps += 1
 
-        predicted_labels, target_labels = np.array(predicted_labels), np.array(target_labels)
-        accuracy = metrics.accuracy_score(target_labels, predicted_labels)
-        precision = metrics.precision_score(target_labels, predicted_labels, average='micro')
-        recall = metrics.recall_score(target_labels, predicted_labels, average='micro')
-        f1 = metrics.f1_score(target_labels, predicted_labels, average='micro')
         avg_loss = total_loss / nb_eval_steps
-
-        return [accuracy, precision, recall, f1, avg_loss], ['accuracy', 'precision', 'recall', 'f1', 'avg_loss']
+        mean_squared_error = metrics.mean_squared_error(target_labels, predicted_labels)
+        mean_absolute_error = metrics.mean_absolute_error(target_labels, predicted_labels)
+        return [mean_squared_error , mean_absolute_error , avg_loss], ['mean_squared_error' , 'mean_absolute_error','avg_loss']

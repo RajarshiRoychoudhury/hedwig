@@ -37,7 +37,13 @@ class KimCNN(nn.Module):
         self.conv3 = nn.Conv2d(input_channel, output_channel, (5, words_dim), padding=(4,0))
 
         self.dropout = nn.Dropout(config.dropout)
-        self.fc1 = nn.Linear(ks * output_channel, target_class)
+        #self.fc1 = nn.Linear(ks * output_channel, target_class)
+        self.regression = args.regression
+        if(config.regression) :
+            self.fc1 = nn.Linear(ks *output_channel, 1)
+            self.tanh = nn.Tanh()
+        else:
+            self.fc1 = nn.Linear(ks * output_channel, target_class)
 
     def forward(self, x, **kwargs):
         if self.mode == 'rand':
@@ -63,4 +69,6 @@ class KimCNN(nn.Module):
         x = torch.cat(x, 1) # (batch, channel_output * ks)
         x = self.dropout(x)
         logit = self.fc1(x) # (batch, target_size)
+        if self.regression:
+            return self.tanh(self.fc1(x))
         return logit

@@ -16,6 +16,7 @@ class CharCNN(nn.Module):
         num_affine_neurons = config.num_affine_neurons
         target_class = config.target_class
         input_channel = 68
+        self.regression  = config.regression
 
         self.conv1 = nn.Conv1d(input_channel, num_conv_filters, kernel_size=7)
         self.conv2 = nn.Conv1d(num_conv_filters, num_conv_filters, kernel_size=7)
@@ -27,8 +28,11 @@ class CharCNN(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
         self.fc1 = nn.Linear(output_channel, num_affine_neurons)
         self.fc2 = nn.Linear(num_affine_neurons, num_affine_neurons)
-        self.fc3 = nn.Linear(num_affine_neurons, target_class)
-
+        if(self.regression) :
+            self.fc3 = nn.Linear(num_affine_neurons, 1)
+            self.tanh = nn.Tanh()
+        else:
+            self.fc3 = nn.Linear(num_affine_neurons, target_class)
     def forward(self, x, **kwargs):
         if torch.cuda.is_available() and self.is_cuda_enabled:
             # print("input to forward is: ", x, file=sys.stderr)
@@ -55,4 +59,6 @@ class CharCNN(nn.Module):
         x = self.dropout(x)
         x = F.relu(self.fc2(x))
         x = self.dropout(x)
+        if self.regression:
+            return self.tanh(self.fc3(x))
         return self.fc3(x)

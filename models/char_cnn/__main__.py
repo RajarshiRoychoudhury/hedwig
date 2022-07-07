@@ -23,6 +23,8 @@ from datasets.ohsumed import OHSUMEDCharQuantized as OHSUMED
 from datasets.r8 import R8CharQuantized as R8
 from datasets.r52 import R52CharQuantized as R52
 from datasets.trec6 import TREC6CharQuantized as TREC6
+from datasets.shit_plos_classification import SHIT_PLOS_CLASSIFICATIONCharQuantized as ShitPlosClassQ
+from datasets.shit_plos_regression import SHIT_PLOS_REGRESSIONCharQuantized as ShitPlosRegQ
 from models.char_cnn.args import get_args
 from models.char_cnn.model import CharCNN
 
@@ -103,8 +105,13 @@ if __name__ == '__main__':
         'OHSUMED': OHSUMED,
         'R8': R8,
         'R52': R52,
-        'TREC6': TREC6
+        'TREC6': TREC6,
+        'SHIT_PLOS_CLASSIFICATION': ShitPlosClassQ,
+        'SHIT_PLOS_REGRESSION':  ShitPlosRegQ
     }
+
+
+
 
     if args.dataset not in dataset_map:
         raise ValueError('Unrecognized dataset')
@@ -126,6 +133,8 @@ if __name__ == '__main__':
             train_iter, dev_iter, test_iter = iters
 
     config = deepcopy(args)
+    if args.regression:
+        config.regression = True
     config.dataset = train_iter.dataset
     config.target_class = train_iter.dataset.NUM_CLASSES
 
@@ -175,7 +184,8 @@ if __name__ == '__main__':
         'model_outfile': args.save_path,
         'logger': logger,
         'is_multilabel': dataset_class.IS_MULTILABEL,
-        'ignore_lengths': True
+        'ignore_lengths': True,
+        'regression': args.regression
     }
 
     trainer = TrainerFactory.get_trainer(args.dataset, model, None, train_iter, trainer_config, train_evaluator, test_evaluator, dev_evaluator)

@@ -10,7 +10,8 @@ def get_args():
     parser.add_argument('--dataset', type=str, default='Reuters', choices=[
                             'Reuters', 'AAPD', 'IMDB', 'Yelp2014', 'AG_NEWS', 'DBpedia',
                             'IMDB_torchtext', 'SogouNews', 'YahooAnswers', 'YelpReviewPolarity',
-                            'TwentyNews', 'OHSUMED', 'R8', 'R52', 'TREC6'
+                            'TwentyNews', 'OHSUMED', 'R8', 'R52', 'TREC6',
+                            'SHIT_PLOS_CLASSIFICATION', 'SHIT_PLOS_REGRESSION'
                         ])
     parser.add_argument('--output-channel', type=int, default=100)
     parser.add_argument('--words-dim', type=int, default=300)

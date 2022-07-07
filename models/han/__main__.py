@@ -24,6 +24,8 @@ from datasets.ohsumed import OHSUMEDHierarchical as OHSUMED
 from datasets.r8 import R8Hierarchical as R8
 from datasets.r52 import R52Hierarchical as R52
 from datasets.trec6 import TREC6Hierarchical as TREC6
+from datasets.shit_plos_classification import SHIT_PLOS_CLASSIFICATIONHierarchical
+from datasets.shit_plos_regression import SHIT_PLOS_REGRESSIONHierarchical
 from models.han.args import get_args
 from models.han.model import HAN
 
@@ -104,7 +106,9 @@ if __name__ == '__main__':
         'OHSUMED': OHSUMED,
         'R8': R8,
         'R52': R52,
-        'TREC6': TREC6
+        'TREC6': TREC6,
+        'SHIT_PLOS_CLASSIFICATION': SHIT_PLOS_CLASSIFICATIONHierarchical,
+        'SHIT_PLOS_REGRESSION':  SHIT_PLOS_REGRESSIONHierarchical
     }
 
     if args.dataset not in dataset_map:
@@ -127,6 +131,8 @@ if __name__ == '__main__':
             train_iter, dev_iter, test_iter = iters
 
     config = deepcopy(args)
+    if args.regression:
+        config.regression = True
     config.dataset = train_iter.dataset
     config.target_class = train_iter.dataset.NUM_CLASSES
     config.words_num = len(train_iter.dataset.TEXT_FIELD.vocab)
@@ -177,7 +183,8 @@ if __name__ == '__main__':
         'model_outfile': args.save_path,
         'logger': logger,
         'is_multilabel': dataset_class.IS_MULTILABEL,
-        'ignore_lengths': True
+        'ignore_lengths': True,
+        'regression': args.regression
     }
 
     trainer = TrainerFactory.get_trainer(args.dataset, model, None, train_iter, trainer_config, train_evaluator, test_evaluator, dev_evaluator)

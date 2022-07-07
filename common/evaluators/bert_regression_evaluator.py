@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from sklearn import metrics
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from tqdm import tqdm
-from transformers import TFTrainingArguments
 
 from datasets.bert_processors.abstract_processor import convert_examples_to_features, \
     convert_examples_to_hierarchical_features
@@ -16,7 +15,7 @@ from utils.preprocessing import pad_input_matrix
 warnings.filterwarnings('ignore')
 
 
-class BertEvaluator(object):
+class BertRegressionEvaluator(object):
     def __init__(self, model, processor, tokenizer, args, split='dev'):
         self.args = args
         self.model = model
@@ -48,7 +47,7 @@ class BertEvaluator(object):
         padded_input_ids = torch.tensor(unpadded_input_ids, dtype=torch.long)
         padded_input_mask = torch.tensor(unpadded_input_mask, dtype=torch.long)
         padded_segment_ids = torch.tensor(unpadded_segment_ids, dtype=torch.long)
-        label_ids = torch.tensor([f.label_id for f in eval_features])
+        label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.float32)
 
         eval_data = TensorDataset(padded_input_ids, padded_input_mask, padded_segment_ids, label_ids)
         eval_sampler = SequentialSampler(eval_data)
@@ -69,14 +68,9 @@ class BertEvaluator(object):
             with torch.no_grad():
                 logits = self.model(input_ids, input_mask, segment_ids)[0]
 
-            if self.args.is_multilabel:
-                predicted_labels.extend(F.sigmoid(logits).round().long().cpu().detach().numpy())
-                target_labels.extend(label_ids.cpu().detach().numpy())
-                loss = F.binary_cross_entropy_with_logits(logits, label_ids.float(), size_average=False)
-            else:
-                predicted_labels.extend(torch.argmax(logits, dim=1).cpu().detach().numpy())
-                target_labels.extend(label_ids.cpu().detach().numpy())
-                loss = F.cross_entropy(logits, torch.amax(label_ids, dim=1))
+            predicted_labels.extend(logits.cpu().detach().numpy())
+            target_labels.extend(label_ids.cpu().detach().numpy())
+            loss = F.smooth_l1_loss(logits, label_ids, size_average=False)
 
             if self.args.n_gpu > 1:
                 loss = loss.mean()
@@ -87,11 +81,7 @@ class BertEvaluator(object):
             nb_eval_examples += input_ids.size(0)
             nb_eval_steps += 1
 
-        predicted_labels, target_labels = np.array(predicted_labels), np.array(target_labels)
-        accuracy = metrics.accuracy_score(target_labels, predicted_labels)
-        precision = metrics.precision_score(target_labels, predicted_labels, average='micro')
-        recall = metrics.recall_score(target_labels, predicted_labels, average='micro')
-        f1 = metrics.f1_score(target_labels, predicted_labels, average='micro')
         avg_loss = total_loss / nb_eval_steps
-
-        return [accuracy, precision, recall, f1, avg_loss], ['accuracy', 'precision', 'recall', 'f1', 'avg_loss']
+        mean_squared_error = metrics.mean_squared_error(target_labels, predicted_labels)
+        mean_absolute_error = metrics.mean_absolute_error(target_labels, predicted_labels)
+        return [mean_squared_error , mean_absolute_error , avg_loss], ['mean_squared_error' , 'mean_absolute_error','avg_loss']

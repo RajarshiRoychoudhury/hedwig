@@ -6,6 +6,8 @@ class BertSentenceEncoder(BertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config, num_labels=config.num_labels)
         self.bert = BertModel(config)
+        for param in self.bert.parameters():
+            param.requires_grad = False
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.init_weights()
 

@@ -37,6 +37,7 @@ class RegLSTM(nn.Module):
         self.lstm = nn.LSTM(config.words_dim, config.hidden_dim, dropout=config.dropout, num_layers=config.num_layers,
                             bidirectional=self.is_bidirectional, batch_first=True)
 
+        self.tanh = nn.Tanh()
         if self.wdrop:
             self.lstm = WeightDrop(self.lstm, ['weight_hh_l0'], dropout=self.wdrop)
         self.dropout = nn.Dropout(config.dropout)
@@ -44,15 +45,31 @@ class RegLSTM(nn.Module):
         if self.has_bottleneck_layer:
             if self.is_bidirectional:
                 self.fc1 = nn.Linear(2 * config.hidden_dim, config.hidden_dim)  # Hidden Bottleneck Layer
-                self.fc2 = nn.Linear(config.hidden_dim, target_class)
+                    
+                if(config.regression) :
+                    self.fc2 = nn.Linear(config.hidden_dim, 1)
+                else:
+                    self.fc2 = nn.Linear(config.hidden_dim, target_class)            
+                        
+            
             else:
                 self.fc1 = nn.Linear(config.hidden_dim, config.hidden_dim//2)   # Hidden Bottleneck Layer
-                self.fc2 = nn.Linear(config.hidden_dim//2, target_class)
+
+                if(config.regression) :
+                    self.fc2 = nn.Linear(config.hidden_dim//2, 1)
+                else:
+                    self.fc2 = nn.Linear(config.hidden_dim//2, target_class)         
         else:
             if self.is_bidirectional:
-                self.fc1 = nn.Linear(2 * config.hidden_dim, target_class)
+                if(config.regression) :
+                    self.fc1 = nn.Linear(2 * config.hidden_dim, 1)
+                else:
+                    self.fc1 = nn.Linear(2 * config.hidden_dim, target_class)
             else:
-                self.fc1 = nn.Linear(config.hidden_dim, target_class)
+                if(config.regression) :
+                    self.fc1 = nn.Linear(config.hidden_dim, 1)
+                else:
+                    self.fc1 = nn.Linear(config.hidden_dim, target_class)
         
         if self.beta_ema>0:
             self.avg_param = deepcopy(list(p.data for p in self.parameters()))
@@ -87,11 +104,15 @@ class RegLSTM(nn.Module):
             # x = self.dropout(x)
             if self.tar or self.ar:
                 return self.fc2(x), rnn_outs.permute(1,0,2)
-            return self.fc2(x)
+            if self.config.regression:
+                return self.tanh(self.fc2(x))
+            #return self.fc2(x)
         else:
             if self.tar or self.ar:
                 return self.fc1(x), rnn_outs.permute(1,0,2)
-            return self.fc1(x)
+            if self.config.regression:
+                return self.tanh(self.fc1(x))
+            #return self.fc1(x)
 
     def update_ema(self):
         self.steps_ema += 1

@@ -1,3 +1,4 @@
+import imp
 import os
 import random
 from copy import deepcopy
@@ -23,6 +24,8 @@ from datasets.yelp_review_polarity import YelpReviewPolarity
 from datasets.imdb_torchtext import IMDBTorchtext
 from datasets.sogou_news import SogouNews
 from datasets.dbpedia import DBpedia
+from datasets.shit_plos_classification import SHIT_PLOS_CLASSIFICATION
+from datasets.shit_plos_regression import SHIT_PLOS_REGRESSION
 from models.fasttext.args import get_args
 from models.fasttext.model import FastText
 
@@ -76,7 +79,6 @@ if __name__ == '__main__':
         print('Warning: Using CPU for training')
 
     dataset_map = {
-        'Reuters': Reuters,
         'AAPD': AAPD,
         'IMDB': IMDB,
         'Yelp2014': Yelp2014,
@@ -90,7 +92,9 @@ if __name__ == '__main__':
         'OHSUMED': OHSUMED,
         'R8': R8,
         'R52': R52,
-        'TREC6': TREC6
+        'TREC6': TREC6,
+        'SHIT_PLOS_CLASSIFICATION': SHIT_PLOS_CLASSIFICATION,
+        'SHIT_PLOS_REGRESSION':  SHIT_PLOS_REGRESSION
     }
 
     if args.dataset not in dataset_map:
@@ -103,6 +107,8 @@ if __name__ == '__main__':
                                                                           unk_init=UnknownWordVecCache.unk)
 
     config = deepcopy(args)
+    if args.regression:
+        config.regression = True
     config.dataset = train_iter.dataset
     config.target_class = train_iter.dataset.NUM_CLASSES
     config.words_num = len(train_iter.dataset.TEXT_FIELD.vocab)
@@ -147,7 +153,8 @@ if __name__ == '__main__':
         'log_interval': args.log_every,
         'patience': args.patience,
         'model_outfile': args.save_path,
-        'is_multilabel': dataset_class.IS_MULTILABEL
+        'is_multilabel': dataset_class.IS_MULTILABEL,
+        'regression': args.regression
     }
 
     trainer = TrainerFactory.get_trainer(args.dataset, model, None, train_iter, trainer_config, train_evaluator, test_evaluator, dev_evaluator)
