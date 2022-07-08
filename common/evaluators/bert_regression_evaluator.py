@@ -80,7 +80,6 @@ class BertRegressionEvaluator(object):
 
             nb_eval_examples += input_ids.size(0)
             nb_eval_steps += 1
-
         avg_loss = total_loss / nb_eval_steps
         mean_squared_error = metrics.mean_squared_error(target_labels, predicted_labels)
         mean_absolute_error = metrics.mean_absolute_error(target_labels, predicted_labels)

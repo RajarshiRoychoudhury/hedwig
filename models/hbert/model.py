@@ -71,6 +71,6 @@ class HierarchicalBert(nn.Module):
         x = self.dropout(x)
         logits = self.fc1(x)  # (batch_size, num_labels)
         if self.regression:
-            return self.tanh(self.fc1(x))
+            return self.tanh(self.fc1(x)), self.fc1(x)
 
         return logits, x
