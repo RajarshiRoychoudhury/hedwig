@@ -218,7 +218,7 @@ def convert_examples_to_hierarchical_features(examples, max_seq_length, tokenize
             input_mask[i0] += padding[i0]
             segment_ids[i0] += padding[i0]
 
-        label_id = [float(x) for x in example.label]
+        label_id = [float(example.label)]
 
         if print_examples and ex_index < 5:
             print("tokens: %s" % " ".join([str(x) for x in tokens]))
