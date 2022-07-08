@@ -44,7 +44,10 @@ class ClassificationEvaluator(Evaluator):
             else:
                 predicted_labels.extend(torch.argmax(scores, dim=1).cpu().detach().numpy())
                 target_labels.extend(torch.argmax(batch.label, dim=1).cpu().detach().numpy())
-                total_loss += F.cross_entropy(scores, torch.amax(batch.label, dim=1), size_average=False).item()
+                #total_loss += F.cross_entropy(scores, torch.amax(batch.label, dim=1), size_average=False).item()
+                total_loss+= F.cross_entropy(scores, 
+                torch.tensor(torch.amax(batch.label.data, dim=1), dtype=torch.long),
+                 size_average=False).item()
 
             if hasattr(self.model, 'tar') and self.model.tar:
                 # Temporal activation regularization

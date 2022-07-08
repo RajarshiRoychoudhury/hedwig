@@ -38,7 +38,8 @@ class RegressionEvaluator(Evaluator):
 
             predicted_labels.extend(scores.cpu().detach().numpy())
             target_labels.extend(batch.label.cpu().detach().numpy())
-            total_loss += F.smooth_l1_loss(scores, torch.amax(batch.label, dim=1), size_average=False).item()
+            #total_loss += F.smooth_l1_loss(scores, torch.amax(batch.label, dim=1), size_average=False).item()
+            total_loss += F.smooth_l1_loss(scores, batch.label, size_average=False).item()
             if hasattr(self.model, 'tar') and self.model.tar:
                 # Temporal activation regularization
                 total_loss += (rnn_outs[1:] - rnn_outs[:-1]).pow(2).mean()

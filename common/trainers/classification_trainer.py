@@ -58,7 +58,8 @@ class ClassificationTrainer(Trainer):
                 for tensor1, tensor2 in zip(torch.argmax(scores, dim=1), batch.label.data):
                     if np.array_equal(tensor1, tensor2):
                         n_correct += 1
-                loss = F.cross_entropy(scores, torch.argmax(batch.label.data, dim=1))
+                #loss = F.cross_entropy(scores, torch.argmax(batch.label.data, dim=1))
+                loss = F.cross_entropy(scores, torch.tensor(torch.amax(batch.label.data, dim=1), dtype=torch.long))
 
             if hasattr(self.model, 'tar') and self.model.tar:
                 loss = loss + self.model.tar * (rnn_outs[1:] - rnn_outs[:-1]).pow(2).mean()
