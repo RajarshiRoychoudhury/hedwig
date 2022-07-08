@@ -38,6 +38,7 @@ class RegLSTM(nn.Module):
                             bidirectional=self.is_bidirectional, batch_first=True)
 
         self.tanh = nn.Tanh()
+        self.regression = config.regression
         if self.wdrop:
             self.lstm = WeightDrop(self.lstm, ['weight_hh_l0'], dropout=self.wdrop)
         self.dropout = nn.Dropout(config.dropout)
@@ -104,13 +105,13 @@ class RegLSTM(nn.Module):
             # x = self.dropout(x)
             if self.tar or self.ar:
                 return self.fc2(x), rnn_outs.permute(1,0,2)
-            if self.config.regression:
+            if self.regression:
                 return self.tanh(self.fc2(x))
             #return self.fc2(x)
         else:
             if self.tar or self.ar:
                 return self.fc1(x), rnn_outs.permute(1,0,2)
-            if self.config.regression:
+            if self.regression:
                 return self.tanh(self.fc1(x))
             #return self.fc1(x)
 
