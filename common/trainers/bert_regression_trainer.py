@@ -47,7 +47,7 @@ class BertTrainer(object):
             batch = tuple(t.to(self.args.device) for t in batch)
             input_ids, input_mask, segment_ids, label_ids = batch
             logits = self.model(input_ids, input_mask, segment_ids)[0]
-            print(torch.argmax(logits, dim=1))
+            print(logits)
             print(label_ids)
 
             if self.args.is_multilabel:
@@ -55,7 +55,7 @@ class BertTrainer(object):
             elif self.args.regression:
                 loss = F.smooth_l1_loss(logits, label_ids.float())
             else:
-                loss = F.cross_entropy(logits, torch.tensor(torch.amax(label_ids, dim=1), dtype=torch.long))
+                loss = F.cross_entropy(logits, torch.amax(label_ids, dim=1))
 
             if self.args.n_gpu > 1:
                 loss = loss.mean()
