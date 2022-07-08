@@ -38,7 +38,7 @@ class KimCNN(nn.Module):
 
         self.dropout = nn.Dropout(config.dropout)
         #self.fc1 = nn.Linear(ks * output_channel, target_class)
-        self.regression = args.regression
+        self.regression = config.regression
         if(config.regression) :
             self.fc1 = nn.Linear(ks *output_channel, 1)
             self.tanh = nn.Tanh()
